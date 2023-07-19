@@ -1,3 +1,16 @@
+ import java.io.File;
+ import java.io.FileWriter;
+ import java.io.IOException;
+ import java.nio.file.Files;
+ import java.nio.file.Path;
+ import java.nio.file.Paths;
+ import java.sql.Connection;
+ import java.sql.DriverManager;
+ import java.sql.PreparedStatement;
+ import java.sql.ResultSet;
+ import java.sql.SQLException;
+
+
 // Classe abstrata Operacao
  abstract class Operacao {
     public abstract double executa(double num1, double num2);
@@ -57,41 +70,96 @@
     String recuperar();
 }
 
-// Classe ArmazenamentoArquivo
+
+ // Classe ArmazenamentoArquivo
  class ArmazenamentoArquivo implements Armazenamento {
-    private String nomeArquivo;
+     private String nomeArquivo;
 
-    public ArmazenamentoArquivo(String nomeArquivo) {
-        this.nomeArquivo = nomeArquivo;
-    }
+     public ArmazenamentoArquivo(String nomeArquivo) {
+         this.nomeArquivo = nomeArquivo;
+     }
 
-    @Override
-    public void salvar(String dados) {
-        // Lógica para salvar os dados em arquivo
-        System.out.println("Dados salvos no arquivo: " + dados);
-    }
+     @Override
+     public void salvar(String dados) {
+         try {
+             FileWriter fileWriter = new FileWriter(nomeArquivo, true);
+             fileWriter.write(dados + "\n");
+             fileWriter.close();
+             System.out.println("Dados salvos no arquivo: " + dados);
+         } catch (IOException e) {
+             System.out.println("Erro ao salvar os dados no arquivo.");
+             e.printStackTrace();
+         }
+     }
 
-    @Override
-    public String recuperar() {
-        // Lógica para recuperar os dados do arquivo
-        return "Dados recuperados do arquivo";
-    }
-}
+     @Override
+     public String recuperar() {
+         try {
+             Path path = Paths.get(nomeArquivo);
+             byte[] bytes = Files.readAllBytes(path);
+             String dados = new String(bytes);
+             System.out.println("Dados recuperados do arquivo: " + dados);
+             return dados;
+         } catch (IOException e) {
+             System.out.println("Erro ao recuperar os dados do arquivo.");
+             e.printStackTrace();
+             return null;
+         }
+     }
+ }
 
-// Classe ArmazenamentoH2
+
+
+ // Classe ArmazenamentoH2
  class ArmazenamentoH2 implements Armazenamento {
-    @Override
-    public void salvar(String dados) {
-        // Lógica para salvar os dados no banco H2
-        System.out.println("Dados salvos no banco H2: " + dados);
-    }
+     private Connection connection;
 
-    @Override
-    public String recuperar() {
-        // Lógica para recuperar os dados do banco H2
-        return "Dados recuperados do banco H2";
-    }
-}
+     public ArmazenamentoH2() {
+         // Configurar a conexão com o banco de dados H2
+         try {
+             connection = DriverManager.getConnection("jdbc:h2:~/meubanco", "usuario", "senha");
+         } catch (SQLException e) {
+             System.out.println("Erro ao conectar ao banco de dados H2.");
+             e.printStackTrace();
+         }
+     }
+
+     @Override
+     public void salvar(String dados) {
+         try {
+             PreparedStatement preparedStatement = connection.prepareStatement("INSERT INTO tabela (dados) VALUES (?)");
+             preparedStatement.setString(1, dados);
+             preparedStatement.executeUpdate();
+             preparedStatement.close();
+             System.out.println("Dados salvos no banco H2: " + dados);
+         } catch (SQLException e) {
+             System.out.println("Erro ao salvar os dados no banco H2.");
+             e.printStackTrace();
+         }
+     }
+
+     @Override
+     public String recuperar() {
+         try {
+             PreparedStatement preparedStatement = connection.prepareStatement("SELECT dados FROM tabela");
+             ResultSet resultSet = preparedStatement.executeQuery();
+             String dados = "";
+             while (resultSet.next()) {
+                 dados += resultSet.getString("dados") + "\n";
+             }
+             resultSet.close();
+             preparedStatement.close();
+             System.out.println("Dados recuperados do banco H2: " + dados);
+             return dados;
+         } catch (SQLException e) {
+             System.out.println("Erro ao recuperar os dados do banco H2.");
+             e.printStackTrace();
+             return null;
+         }
+     }
+ }
+
+
 
 // Classe Calculadora
 class Calculadora {
